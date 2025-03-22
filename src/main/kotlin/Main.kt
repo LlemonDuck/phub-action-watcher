@@ -86,7 +86,7 @@ fun main() {
 
     val jf = JFrame()
     jf.background = Color.green
-    jf.setSize(500, 500)
+    jf.setSize(250, 150)
     jf.add(label)
     jf.defaultCloseOperation = WindowConstants.EXIT_ON_CLOSE
     jf.isAlwaysOnTop = true
