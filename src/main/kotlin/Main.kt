@@ -13,6 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -45,10 +46,15 @@ object InstantSerializer : KSerializer<Instant> {
 }
 
 @Serializable
-data class WorkflowRunsQuery(val workflow_runs: List<WorkflowRun>)
+data class WorkflowRunsQuery(
+    @SerialName("workflow_runs") val workflowRuns: List<WorkflowRun>
+)
 
 @Serializable
-data class WorkflowRun(val status: String, val updated_at: Instant)
+data class WorkflowRun(
+    val status: String,
+    @SerialName("updated_at") val updatedAt: Instant
+)
 
 fun main() {
     val json = Json {
@@ -103,7 +109,7 @@ fun main() {
                     val workflows = client.get("https://api.github.com/repos/runelite/plugin-hub/actions/runs?branch=master&per_page=5")
                         .body<WorkflowRunsQuery>()
 
-                    val mostRecent = workflows.workflow_runs.maxByOrNull { it.updated_at }
+                    val mostRecent = workflows.workflowRuns.maxByOrNull { it.updatedAt }
                     lastRunAtomic.set(mostRecent)
                 }
             }
@@ -114,7 +120,7 @@ fun main() {
 
                     val lastRun = lastRunAtomic.get()
                     SwingUtilities.invokeLater {
-                        label.text = lastRun?.updated_at?.let { Duration.between(it, Instant.now()).humanFormat() } ?: "no data"
+                        label.text = lastRun?.updatedAt?.let { Duration.between(it, Instant.now()).humanFormat() } ?: "no data"
                         jf.contentPane.background = when (lastRun?.status) {
                             "completed" -> Color(0x39753B)
                             "failure" -> Color(0x9F2929)
