@@ -1,4 +1,5 @@
 @file:UseSerializers(InstantSerializer::class)
+@file:OptIn(ExperimentalTime::class)
 
 package com.duckblade
 
@@ -24,19 +25,20 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
 import java.awt.Color
 import java.awt.Component
-import java.time.Duration
-import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
 import javax.swing.*
+import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.toJavaDuration
+import kotlin.time.Duration
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 object InstantSerializer : KSerializer<Instant> {
-    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("java.time.Instant", PrimitiveKind.STRING)
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("kotlin.time.Instant", PrimitiveKind.STRING)
     override fun serialize(encoder: Encoder, value: Instant) = encoder.encodeString(value.toString())
     override fun deserialize(decoder: Decoder): Instant = Instant.parse(decoder.decodeString())
 }
@@ -125,7 +127,7 @@ fun main() {
 
                     val lastRun = lastRunAtomic.get()
                     SwingUtilities.invokeLater {
-                        label.text = lastRun?.updatedAt?.let { Duration.between(it, Instant.now()).humanFormat() } ?: "no data"
+                        label.text = lastRun?.updatedAt?.let { (Clock.System.now() - it).humanFormat() } ?: "no data"
                         jf.contentPane.background = when (lastRun?.status) {
                             "completed" -> {
                                 if (lastRun.conclusion == "success")
@@ -145,17 +147,13 @@ fun main() {
 }
 
 private fun Duration.humanFormat(): String {
-    return if (this > 1.days) {
-        "${this.toDays()}d ${this.toHoursPart()}h"
-    } else if (this > 1.hours) {
-        "${this.toHours()}h ${this.toMinutesPart()}m"
-    } else if (this > 1.minutes) {
-        "${this.toMinutes()}m ${this.toSecondsPart()}s"
+    return if (this >= 1.days) {
+        "${this.inWholeDays}d ${this.inWholeHours % 1.days.inWholeHours}h"
+    } else if (this >= 1.hours) {
+        "${this.inWholeHours}h ${this.inWholeMinutes % 1.hours.inWholeMinutes}m"
+    } else if (this >= 1.minutes) {
+        "${this.inWholeMinutes}m ${this.inWholeSeconds % 1.minutes.inWholeSeconds}s"
     } else {
-        "${this.toSeconds()}s"
+        "${this.inWholeSeconds}s"
     }
-}
-
-private operator fun Duration.compareTo(kDuration: kotlin.time.Duration): Int {
-    return compareTo(kDuration.toJavaDuration())
 }
