@@ -46,6 +46,11 @@ object InstantSerializer : KSerializer<Instant> {
 }
 
 @Serializable
+data class Repository(
+    @SerialName("full_name") val fullName: String,
+)
+
+@Serializable
 data class WorkflowRunsQuery(
     @SerialName("workflow_runs") val workflowRuns: List<WorkflowRun>
 )
@@ -53,7 +58,8 @@ data class WorkflowRunsQuery(
 @Serializable
 data class WorkflowRun(
     val status: String,
-    @SerialName("updated_at") val updatedAt: Instant
+    @SerialName("updated_at") val updatedAt: Instant,
+    @SerialName("head_repository") val headRepository: Repository,
 )
 
 fun main() {
@@ -106,10 +112,12 @@ fun main() {
                 while (true) {
                     delay(5.seconds)
 
-                    val workflows = client.get("https://api.github.com/repos/runelite/plugin-hub/actions/runs?branch=master&per_page=5")
+                    val workflows = client.get("https://api.github.com/repos/runelite/plugin-hub/actions/runs?branch=master&per_page=100")
                         .body<WorkflowRunsQuery>()
 
-                    val mostRecent = workflows.workflowRuns.maxByOrNull { it.updatedAt }
+                    val mostRecent = workflows.workflowRuns
+                        .filter { it.headRepository.fullName == "runelite/plugin-hub" } // filter out forks' "master" branches
+                        .maxByOrNull { it.updatedAt }
                     lastRunAtomic.set(mostRecent)
                 }
             }
