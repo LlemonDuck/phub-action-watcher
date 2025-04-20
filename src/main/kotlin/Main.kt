@@ -54,7 +54,7 @@ data class WorkflowRunsQuery(
 @Serializable
 data class WorkflowRun(
     val status: String,
-    val conclusion: String,
+    val conclusion: String?,
     @SerialName("updated_at") val updatedAt: Instant,
     @SerialName("head_repository") val headRepository: Repository,
 )
