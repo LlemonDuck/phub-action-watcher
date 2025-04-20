@@ -27,11 +27,7 @@ import java.awt.Component
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
-import javax.swing.JFrame
-import javax.swing.JLabel
-import javax.swing.SwingConstants
-import javax.swing.SwingUtilities
-import javax.swing.WindowConstants
+import javax.swing.*
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
@@ -52,12 +48,13 @@ data class Repository(
 
 @Serializable
 data class WorkflowRunsQuery(
-    @SerialName("workflow_runs") val workflowRuns: List<WorkflowRun>
+    @SerialName("workflow_runs") val workflowRuns: List<WorkflowRun>,
 )
 
 @Serializable
 data class WorkflowRun(
     val status: String,
+    val conclusion: String,
     @SerialName("updated_at") val updatedAt: Instant,
     @SerialName("head_repository") val headRepository: Repository,
 )
@@ -130,8 +127,13 @@ fun main() {
                     SwingUtilities.invokeLater {
                         label.text = lastRun?.updatedAt?.let { Duration.between(it, Instant.now()).humanFormat() } ?: "no data"
                         jf.contentPane.background = when (lastRun?.status) {
-                            "completed" -> Color(0x39753B)
-                            "failure" -> Color(0x9F2929)
+                            "completed" -> {
+                                if (lastRun.conclusion == "success")
+                                    Color(0x39753B)
+                                else
+                                    Color(0x9F2929)
+                            }
+
                             null -> Color(0x565656)
                             else -> Color(0xA97B0B)
                         }
