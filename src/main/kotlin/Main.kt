@@ -13,6 +13,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.io.IOException
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -25,6 +26,7 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
 import java.awt.Color
 import java.awt.Component
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import javax.swing.*
 import kotlin.time.Clock
@@ -62,6 +64,10 @@ data class WorkflowRun(
 )
 
 fun main() {
+    val token = System.getenv("GITHUB_TOKEN")
+        ?: runCommand("gh", "auth", "token")
+        ?: throw RuntimeException("No github token provided, use GITHUB_TOKEN env or gh auth login")
+
     val json = Json {
         ignoreUnknownKeys = true
     }
@@ -74,7 +80,7 @@ fun main() {
                         chain.request()
                             .newBuilder()
                             .addHeader("Accept", "application/vnd.github+json")
-                            .addHeader("Authorization", "Bearer ${System.getenv("GITHUB_TOKEN")}")
+                            .addHeader("Authorization", "Bearer $token")
                             .addHeader("X-GitHub-Api-Version", "2022-11-28")
                             .addHeader("User-Agent", "runelite/plugin-hub actions watcher by gh/LlemonDuck")
                             .build()
@@ -155,5 +161,20 @@ private fun Duration.humanFormat(): String {
         "${this.inWholeMinutes}m ${this.inWholeSeconds % 1.minutes.inWholeSeconds}s"
     } else {
         "${this.inWholeSeconds}s"
+    }
+}
+
+fun runCommand(vararg cmd: String): String? {
+    try {
+        val proc = ProcessBuilder(*cmd)
+            .redirectOutput(ProcessBuilder.Redirect.PIPE)
+            .redirectError(ProcessBuilder.Redirect.PIPE)
+            .start()
+
+        proc.waitFor(5, TimeUnit.SECONDS)
+        return proc.inputStream.bufferedReader().readText().trim()
+    } catch(e: IOException) {
+        e.printStackTrace()
+        return null
     }
 }
