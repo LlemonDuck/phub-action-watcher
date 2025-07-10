@@ -7,11 +7,14 @@ group = "com.duckblade"
 version = "1.0-SNAPSHOT"
 
 repositories {
+    maven("https://repo.runelite.net")
     mavenCentral()
 }
 
 val ktorVersion = "3.1.0"
 dependencies {
+    compileOnly("net.runelite:client:latest.release")
+
     implementation(kotlin("stdlib-jdk8"))
     implementation("io.ktor:ktor-client-core:$ktorVersion")
     implementation("io.ktor:ktor-client-okhttp:$ktorVersion")
