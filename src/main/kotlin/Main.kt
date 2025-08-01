@@ -26,6 +26,7 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
 import java.awt.Color
 import java.awt.Component
+import java.awt.GraphicsEnvironment
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import javax.swing.*
@@ -108,6 +109,10 @@ fun main() {
     jf.defaultCloseOperation = WindowConstants.EXIT_ON_CLOSE
     jf.isAlwaysOnTop = true
     jf.isVisible = true
+
+    val ge = GraphicsEnvironment.getLocalGraphicsEnvironment()
+    val wb = ge.maximumWindowBounds
+    jf.setLocation(0, wb.height - jf.height)
 
     val lastRunAtomic = AtomicReference<WorkflowRun>(null)
 
