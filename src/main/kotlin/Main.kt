@@ -7,7 +7,9 @@ import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.*
+import io.ktor.http.URLProtocol
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -65,37 +67,50 @@ data class WorkflowRun(
     @SerialName("head_repository") val headRepository: Repository,
 )
 
-fun main() {
-    val token = System.getenv("GITHUB_TOKEN")
-        ?: runCommand("gh", "auth", "token")
-        ?: throw RuntimeException("No github token provided, use GITHUB_TOKEN env or gh auth login")
+@Serializable
+data class PullRequestFile(
+    val filename: String,
+    val status: String,
+)
 
-    val json = Json {
-        ignoreUnknownKeys = true
+val token = System.getenv("GITHUB_TOKEN")
+    ?: runCommand("gh", "auth", "token")
+    ?: throw RuntimeException("No github token provided, use GITHUB_TOKEN env or gh auth login")
+
+val json = Json {
+    ignoreUnknownKeys = true
+}
+val client = HttpClient(OkHttp) {
+    defaultRequest {
+        url {
+            protocol = URLProtocol.HTTPS
+            host = "api.github.com"
+        }
     }
-    val client = HttpClient(OkHttp) {
-        engine {
-            config {
-                followRedirects(true)
-                addInterceptor { chain ->
-                    chain.proceed(
-                        chain.request()
-                            .newBuilder()
-                            .addHeader("Accept", "application/vnd.github+json")
-                            .addHeader("Authorization", "Bearer $token")
-                            .addHeader("X-GitHub-Api-Version", "2022-11-28")
-                            .addHeader("User-Agent", "runelite/plugin-hub actions watcher by gh/LlemonDuck")
-                            .build()
-                    )
-                }
+    engine {
+        config {
+            followRedirects(true)
+            addInterceptor { chain ->
+                chain.proceed(
+                    chain.request()
+                        .newBuilder()
+                        .addHeader("Accept", "application/vnd.github+json")
+                        .addHeader("Authorization", "Bearer $token")
+                        .addHeader("X-GitHub-Api-Version", "2022-11-28")
+                        .addHeader("User-Agent", "runelite/plugin-hub actions watcher by gh/LlemonDuck")
+                        .build()
+                )
             }
         }
-
-        install(ContentNegotiation) {
-            json(json)
-        }
     }
 
+    install(ContentNegotiation) {
+        json(json)
+    }
+}
+
+
+fun main() {
     val label = JLabel("no data")
     label.foreground = Color.white
     label.alignmentX = Component.CENTER_ALIGNMENT
@@ -132,7 +147,7 @@ fun main() {
                 while (true) {
                     delay(5.seconds)
                     try {
-                        val workflows = client.get("https://api.github.com/repos/runelite/plugin-hub/actions/runs?branch=master&per_page=100")
+                        val workflows = client.get("/repos/runelite/plugin-hub/actions/runs?branch=master&per_page=100")
                             .body<WorkflowRunsQuery>()
 
                         val mostRecent = workflows.workflowRuns
@@ -191,6 +206,12 @@ fun main() {
                         println("Merging $prNum")
                         seenYellow = false
 
+                        val subject = getMergeSubject(prNum)
+                        if (subject == null) {
+                            println("Not merging $prNum due to missing subject")
+                            continue
+                        }
+
                         runCommand(
                             "gh",
                             "pr",
@@ -199,6 +220,7 @@ fun main() {
                             "-s",
                             "-R", "runelite/plugin-hub",
                             "$prNum",
+                            "-t", subject,
                             env = mapOf("GH_TOKEN" to token)
                         )
                     }
@@ -234,4 +256,24 @@ fun runCommand(vararg cmd: String, env: Map<String, String> = emptyMap()): Strin
         e.printStackTrace()
         return null
     }
+}
+
+suspend fun getMergeSubject(pr: Int): String? {
+    val pluginFile = client.get("/repos/runelite/plugin-hub/pulls/$pr/files")
+        .body<Array<PullRequestFile>>()
+        .singleOrNull() ?: return null
+
+    if (!pluginFile.filename.startsWith("plugins/")) {
+        return null
+    }
+
+    val verb = when (pluginFile.status) {
+        "added" -> "add"
+        "modified" -> "update"
+        else -> return null
+    }
+
+    val glob = pluginFile.filename.substringAfter("plugins/")
+
+    return "$verb $glob"
 }
