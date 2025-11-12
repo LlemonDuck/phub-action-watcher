@@ -121,14 +121,15 @@ fun main() {
             launch {
                 while (true) {
                     delay(5.seconds)
+                    try {
+                        val workflows = client.get("https://api.github.com/repos/runelite/plugin-hub/actions/runs?branch=master&per_page=100")
+                            .body<WorkflowRunsQuery>()
 
-                    val workflows = client.get("https://api.github.com/repos/runelite/plugin-hub/actions/runs?branch=master&per_page=100")
-                        .body<WorkflowRunsQuery>()
-
-                    val mostRecent = workflows.workflowRuns
-                        .filter { it.headRepository.fullName == "runelite/plugin-hub" } // filter out forks' "master" branches
-                        .maxByOrNull { it.updatedAt }
-                    lastRunAtomic.set(mostRecent)
+                        val mostRecent = workflows.workflowRuns
+                            .filter { it.headRepository.fullName == "runelite/plugin-hub" } // filter out forks' "master" branches
+                            .maxByOrNull { it.updatedAt }
+                        lastRunAtomic.set(mostRecent)
+                    } catch (t: Throwable) {}
                 }
             }
 
