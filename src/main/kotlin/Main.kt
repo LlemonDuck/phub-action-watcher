@@ -27,6 +27,7 @@ import kotlinx.serialization.json.Json
 import java.awt.Color
 import java.awt.Component
 import java.awt.GraphicsEnvironment
+import java.awt.GridLayout
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import javax.swing.*
@@ -102,18 +103,27 @@ fun main() {
     label.verticalAlignment = SwingConstants.CENTER
     label.horizontalAlignment = SwingConstants.CENTER
 
+    val mergeQueue = MergeQueuePanel()
+
     val jf = JFrame()
+    jf.layout = GridLayout(1, 2)
     jf.background = Color.green
-    jf.setSize(250, 150)
-    jf.add(label)
+    jf.setSize(500, 150)
     jf.defaultCloseOperation = WindowConstants.EXIT_ON_CLOSE
     jf.isAlwaysOnTop = true
     jf.isVisible = true
+
+    jf.add(label)
+    jf.add(mergeQueue)
 
     val ge = GraphicsEnvironment.getLocalGraphicsEnvironment()
     val wb = ge.maximumWindowBounds
     jf.setLocation(0, wb.height - jf.height)
 
+    var seenYellow = true
+    var greenCount = 0
+
+    val lastRunTimeAtomic = AtomicReference(0L)
     val lastRunAtomic = AtomicReference<WorkflowRun>(null)
 
     runBlocking {
@@ -129,6 +139,7 @@ fun main() {
                             .filter { it.headRepository.fullName == "runelite/plugin-hub" } // filter out forks' "master" branches
                             .maxByOrNull { it.updatedAt }
                         lastRunAtomic.set(mostRecent)
+                        lastRunTimeAtomic.set(System.currentTimeMillis())
                     } catch (t: Throwable) {}
                 }
             }
@@ -154,6 +165,45 @@ fun main() {
                     }
                 }
             }
+
+            // merge queue task
+            launch {
+                var lastSeen: Long = 0
+                while (true) {
+                    delay(20.milliseconds)
+
+                    val lastRunTime = lastRunTimeAtomic.get()
+                    if (lastSeen == lastRunTime) continue
+                    lastSeen = lastRunTime
+
+                    val lastRun = lastRunAtomic.get()
+                    if (lastRun.status != "completed") {
+                        seenYellow = true
+                        greenCount = 0
+                    } else {
+                        if (seenYellow && lastRun.conclusion == "success") {
+                            greenCount++
+                        }
+                    }
+
+                    if (seenYellow && greenCount > 5) {
+                        val prNum = mergeQueue.pop() ?: continue
+                        println("Merging $prNum")
+                        seenYellow = false
+
+                        runCommand(
+                            "gh",
+                            "pr",
+                            "merge",
+                            "--admin",
+                            "-s",
+                            "-R", "runelite/plugin-hub",
+                            "$prNum",
+                            env = mapOf("GH_TOKEN" to token)
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -170,12 +220,13 @@ private fun Duration.humanFormat(): String {
     }
 }
 
-fun runCommand(vararg cmd: String): String? {
+fun runCommand(vararg cmd: String, env: Map<String, String> = emptyMap()): String? {
     try {
-        val proc = ProcessBuilder(*cmd)
-            .redirectOutput(ProcessBuilder.Redirect.PIPE)
-            .redirectError(ProcessBuilder.Redirect.PIPE)
-            .start()
+        val proc = ProcessBuilder(*cmd).apply {
+            environment().putAll(env)
+            redirectOutput(ProcessBuilder.Redirect.PIPE)
+            redirectError(ProcessBuilder.Redirect.PIPE)
+        }.start()
 
         proc.waitFor(5, TimeUnit.SECONDS)
         return proc.inputStream.bufferedReader().readText().trim()
