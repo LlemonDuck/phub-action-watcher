@@ -1,10 +1,15 @@
 plugins {
     kotlin("jvm") version "2.1.20"
     kotlin("plugin.serialization") version "2.1.20"
+    application
 }
 
 group = "com.duckblade"
 version = "1.0-SNAPSHOT"
+
+application {
+    mainClass = "com.duckblade.MainKt"
+}
 
 repositories {
     maven("https://repo.runelite.net")
