@@ -6,10 +6,13 @@ import com.duckblade.phubreview.jobs.StatusPanelUpdateJob
 import com.duckblade.phubreview.ui.MergeQueuePanel
 import com.duckblade.phubreview.ui.StatusPanel
 import com.duckblade.phubreview.ui.WatcherFrame
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
+
+lateinit var cs: CoroutineScope
 
 suspend fun main() {
 
@@ -25,6 +28,7 @@ suspend fun main() {
     val mergeJob = MergeJob(actionsWatcherJob, mergeQueue, gh)
 
     coroutineScope {
+        cs = this@coroutineScope
         launch { actionsWatcherJob.start() }
         launch { mergeJob.start() }
         launch { statusPanelUpdateJob.start() }

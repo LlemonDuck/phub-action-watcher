@@ -3,6 +3,7 @@ package com.duckblade.phubreview.ui
 import com.duckblade.phubreview.MergeQueue
 import com.duckblade.phubreview.MergeState
 import com.duckblade.phubreview.QueuedItem
+import com.duckblade.phubreview.cs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.invoke
 import kotlinx.coroutines.launch
@@ -42,7 +43,9 @@ class MergeQueuePanel(
             addActionListener {
                 val prNumber = text.toIntOrNull() ?: return@addActionListener
                 runBlocking {
-                    launch { queue.add(prNumber) }
+                    cs.launch {
+                        queue.add(prNumber)
+                    }
                 }
                 text = ""
             }
