@@ -8,7 +8,7 @@ group = "com.duckblade"
 version = "1.0-SNAPSHOT"
 
 application {
-    mainClass = "com.duckblade.MainKt"
+    mainClass = "com.duckblade.phubreview.MainKt"
 }
 
 repositories {
