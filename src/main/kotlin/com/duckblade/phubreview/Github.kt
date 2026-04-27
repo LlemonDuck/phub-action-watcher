@@ -120,7 +120,7 @@ class Github(
 
         val glob = pluginFile.filename.substringAfter("plugins/")
 
-        return "$verb $glob"
+        return "$verb $glob (#$pr)"
     }
 
     suspend fun merge(pr: QueuedItem) {
