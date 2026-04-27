@@ -58,7 +58,7 @@ class MergeQueuePanel(
 
         items.forEach { pr ->
             queueDisplay.add(JLabel().apply {
-                text = "#${pr.number}: ${pr.subject ?: "Loading..."}"
+                text = pr.subject ?: "Loading #${pr.number}..."
                 foreground = when (pr.state) {
                     MergeState.LOADING -> Color.GRAY
                     MergeState.READY -> Color.BLACK
