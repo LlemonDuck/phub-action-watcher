@@ -3,6 +3,7 @@ package com.duckblade.phubreview
 import com.duckblade.phubreview.jobs.ActionsWatcherJob
 import com.duckblade.phubreview.jobs.MergeJob
 import com.duckblade.phubreview.jobs.StatusPanelUpdateJob
+import com.duckblade.phubreview.jobs.UpdateTimerJob
 import com.duckblade.phubreview.ui.MergeQueuePanel
 import com.duckblade.phubreview.ui.StatusPanel
 import com.duckblade.phubreview.ui.WatcherFrame
@@ -26,12 +27,14 @@ suspend fun main() {
     val actionsWatcherJob = ActionsWatcherJob(gh)
     val statusPanelUpdateJob = StatusPanelUpdateJob(statusPanel, actionsWatcherJob)
     val mergeJob = MergeJob(actionsWatcherJob, mergeQueue, gh)
+    val updateTimerJob = UpdateTimerJob(statusPanel)
 
     coroutineScope {
         cs = this@coroutineScope
         launch { actionsWatcherJob.start() }
         launch { mergeJob.start() }
         launch { statusPanelUpdateJob.start() }
+        launch { updateTimerJob.start() }
         launch(Dispatchers.Swing) { watcherFrame.isVisible = true }
     }
 

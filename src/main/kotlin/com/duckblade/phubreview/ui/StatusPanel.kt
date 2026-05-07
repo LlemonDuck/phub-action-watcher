@@ -2,6 +2,11 @@ package com.duckblade.phubreview.ui
 
 import com.duckblade.phubreview.WorkflowRun
 import com.duckblade.phubreview.humanFormat
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.swing.Swing
+import kotlinx.coroutines.withContext
 import java.awt.BorderLayout
 import java.awt.Color
 import javax.swing.JLabel
@@ -23,19 +28,31 @@ class StatusPanel : JPanel() {
         verticalAlignment = SwingConstants.CENTER
         horizontalAlignment = SwingConstants.CENTER
     }
-    
+
+    val timerLabel = JLabel().apply {
+        foreground = Color.WHITE
+        alignmentX = CENTER_ALIGNMENT
+        alignmentY = CENTER_ALIGNMENT
+        verticalAlignment = SwingConstants.CENTER
+        horizontalAlignment = SwingConstants.CENTER
+    }
+
     init {
         layout = BorderLayout()
         add(label, BorderLayout.CENTER)
+        add(timerLabel, BorderLayout.SOUTH)
 
-        rerender(null)
+        runBlocking {
+            updateActionsLabel(null)
+            updateTimer("0s")
+        }
     }
 
-    fun rerender(lastRun: WorkflowRun?) {
+    suspend fun updateActionsLabel(lastRun: WorkflowRun?) = withContext(Dispatchers.Swing) {
         if (lastRun == null) {
             label.text = "no data"
             background = COLOR_NO_DATA
-            return
+            return@withContext
         }
 
         label.text = (Clock.System.now() - lastRun.updatedAt).humanFormat()
@@ -49,6 +66,10 @@ class StatusPanel : JPanel() {
 
             else -> COLOR_RUNNING
         }
+    }
+
+    suspend fun updateTimer(s: String) = withContext(Dispatchers.Swing) {
+        launch { timerLabel.text = s }
     }
 
 }
